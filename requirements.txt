@@ -1,0 +1,7 @@
+pandas==1.5.3
+requests==2.31.0
+simple-salesforce==1.12.3
+fastapi==0.95.1
+uvicorn==0.22.0
+gradio==3.34.0
+python-dotenv==1.0.0
