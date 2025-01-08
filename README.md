@@ -38,11 +38,11 @@ curl -X POST \
   import requests
 
 # Salesforce OAuth2 credentials
-client_id = "3MVG9PwZx9R6_UrcZJUxBG5sQRKJw1LBzOCjWsGpW1VhC3Ic7VyJBQ4MvWfXNzpJMFxGTEd8mACOoaYeHb0.f"
-client_secret = "4037F4C7C2E0192C09A4EB64275C2E3FF2B707D1C2E631AB14ABE828669E2756"
-username = "rock@iscs.sandbox"
-password = "12345678@LrsZ5cmYVAMkNFr2r8DBZkzDGl6"
-token_url = "https://login.salesforce.com/services/oauth2/token"  # Use https://login.salesforce.com for production
+client_id = 
+client_secret = 
+username = 
+password = 
+token_url = 
 
 # Create a dictionary for the OAuth2 parameters
 params = {
@@ -77,11 +77,11 @@ except Exception as err:
 # code for acessing the salesforce instance url
 
 import requests
-client_id = "3MVG9PwZx9R6_UrcZJUxBG5sQRKJw1LBzOCjWsGpW1VhC3Ic7VyJBQ4MvWfXNzpJMFxGTEd8mACOoaYeHb0.f"
-client_secret = "4037F4C7C2E0192C09A4EB64275C2E3FF2B707D1C2E631AB14ABE828669E2756"
-username = "rock@iscs.sandbox"
-password = "12345678@LrsZ5cmYVAMkNFr2r8DBZkzDGl6"
-token_url = "https://login.salesforce.com/services/oauth2/token"  # For production, use login.salesforce.com; for sandbox, use test.salesforce.com
+client_id =
+client_secret = 
+username = 
+password = 
+token_url =
 
 # Prepare the payload
 payload = {
