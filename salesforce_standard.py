@@ -392,7 +392,6 @@ def update_record_by_id(
 
     return False, "Max retry attempts reached"
 
-#-----------------DELETE LOGIC--------------------
 
 def delete_record_by_id(
     sf: Salesforce,
@@ -429,6 +428,7 @@ def delete_record_by_id(
                 return False, str(e)
 
     return False, "Max retry attempts reached"
+
 #-----------------------API ENDPOINTS---------------------
 def process_uploaded_file(file_path: str) -> Dict[str, Any]:
     logger.info(f"Processing uploaded file: {file_path}")

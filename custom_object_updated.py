@@ -632,9 +632,12 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "cobjectio:app",
+        "custom_object_updated:app",
         host="0.0.0.0",
         port=8000,
         reload=False,
         workers=4
     )
+
+    ## saleforce api endpoint
+    """https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/ISCS__c/"""""
