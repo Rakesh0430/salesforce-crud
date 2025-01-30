@@ -5,6 +5,7 @@ from fastapi.security import OAuth2PasswordBearer
 from pydantic import BaseModel, EmailStr, Field, validator
 from typing import Optional, Dict, Any
 from datetime import datetime, date
+
 import requests
 import logging
 import os
@@ -98,7 +99,7 @@ app = FastAPI(
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=["*"],  
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -359,9 +360,13 @@ async def general_exception_handler(request, exc):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "crudsalesforce:app",
+        "custom_object:app",
         host="0.0.0.0",
         port=8000,
-        reload=False,  # Disable in production
-        workers=4  # Adjust based on your needs
+        reload=False,  
+        workers=4  
     )
+
+
+
+    """https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/ISCS__c/"""
