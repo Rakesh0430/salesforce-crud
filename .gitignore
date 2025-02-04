@@ -6,3 +6,6 @@ __pycache__/
 .venv
 .output
 .app.log
+.updated_test_accounts.csv
+.updated_test_accounts.json
+.updated_test_accounts.xml
