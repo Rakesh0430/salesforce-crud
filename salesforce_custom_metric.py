@@ -3,6 +3,7 @@ import logging
 import asyncio
 import psutil
 import time
+import platform  # Newly added for detailed system metrics
 from logging.handlers import RotatingFileHandler
 from datetime import datetime, date, timedelta
 from functools import lru_cache
@@ -23,7 +24,7 @@ load_dotenv()
 
 # Logging Configuration
 
-LOG_FILENAME = "salesforce_api_io.log"
+LOG_FILENAME = "salesforce_custom_object_metric.log"
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
@@ -45,8 +46,9 @@ logger.addHandler(file_handler)
 
 class Settings:
     """
-    Holds Salesforce configuration values such as client IDs, client secrets, usernames, and tokens.
-    Loaded from environment variables for enhanced security and flexibility.
+    Holds Salesforce configuration values such as client IDs, client secrets,
+    usernames, and tokens. Loaded from environment variables for enhanced security
+    and flexibility.
     """
     CLIENT_ID: str = os.getenv("SALESFORCE_CLIENT_ID")
     CLIENT_SECRET: str = os.getenv("SALESFORCE_CLIENT_SECRET")
@@ -622,6 +624,30 @@ async def health_check() -> Dict[str, Any]:
         }
     }
 
+# Detailed Metrics Endpoint
+
+@app.get("/metrics", tags=["Metrics"])
+async def get_detailed_metrics() -> Dict[str, Any]:
+    """
+    Returns detailed system metrics including CPU, memory, disk, and network statistics.
+    """
+    metrics = {
+        "cpu_usage_percent": psutil.cpu_percent(interval=0.1),
+        "memory_usage_percent": psutil.virtual_memory().percent,
+        "disk_usage_percent": psutil.disk_usage('/').percent,  # Assuming root partition
+        "system_load_avg": psutil.getloadavg(),  # (1 min, 5 min, 15 min) load averages
+        "cpu_count": psutil.cpu_count(),  # Number of logical CPUs
+        "cpu_freq_current": psutil.cpu_freq().current,
+        "cpu_freq_min": psutil.cpu_freq().min,
+        "cpu_freq_max": psutil.cpu_freq().max,
+        "system_uptime": time.time() - psutil.boot_time(),  # Uptime in seconds
+        "network_bytes_sent": psutil.net_io_counters().bytes_sent,
+        "network_bytes_recv": psutil.net_io_counters().bytes_recv,
+        "operating_system": platform.platform(),  # Full OS details
+        "python_version": platform.python_version(),
+    }
+    return metrics
+
 # Global Error Handlers
 
 @app.exception_handler(HTTPException)
@@ -688,7 +714,7 @@ if __name__ == "__main__":
     import uvicorn
 
     uvicorn.run(
-        "salesforce_metric:app",
+        "salesforce_custom_metric:app",
         host="0.0.0.0",
         port=8000,
         reload=False,

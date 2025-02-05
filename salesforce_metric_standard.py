@@ -16,12 +16,13 @@ import tempfile
 import shutil
 from dotenv import load_dotenv
 import psutil  # For system metrics like CPU usage
+import platform  # For OS-specific details
 
 # Load environment variables from .env file
 load_dotenv()
 
 # Configure logging
-LOG_FILE = "app.log"  # Specify the log file name
+LOG_FILE = "salesforce_standard_object_metrics_app.log"  # Specify the log file name
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +82,26 @@ class RecentDataManager:
         return self.recent_records
 
 recent_data_manager = RecentDataManager()
+
+def get_system_metrics() -> Dict[str, Any]:
+    """Collects detailed system metrics."""
+    metrics = {
+        "cpu_usage_percent": psutil.cpu_percent(interval=0.1),
+        "memory_usage_percent": psutil.virtual_memory().percent,
+        "disk_usage_percent": psutil.disk_usage('/').percent,  # Assuming root partition
+        "system_load_avg": psutil.getloadavg(),  # (1 min, 5 min, 15 min) load averages
+        "cpu_count": psutil.cpu_count(),  # Number of logical CPUs
+        "cpu_freq_current": psutil.cpu_freq().current,
+        "cpu_freq_min": psutil.cpu_freq().min,
+        "cpu_freq_max": psutil.cpu_freq().max,
+        "system_uptime": time.time() - psutil.boot_time(),  # Uptime in seconds
+        "network_bytes_sent": psutil.net_io_counters().bytes_sent,
+        "network_bytes_recv": psutil.net_io_counters().bytes_recv,
+        "operating_system": platform.platform(),  # Full OS details
+        "python_version": platform.python_version(),
+    }
+    return metrics
+
 
 def read_file_data(file_path: str) -> List[Dict[str, Any]]:
     """Read data from CSV, JSON, or XML file."""
@@ -253,7 +274,7 @@ def batch_insert_data(
 ) -> Tuple[List[Dict[str, Any]], List[FailedRecord], Dict[str, Any]]:
     logger.info(f"Starting batch insert of {len(records)} records...")
     start_time = time.time()
-    cpu_before = psutil.cpu_percent(interval=0.1)
+    system_metrics_before = get_system_metrics()  # Capture metrics before insertion
     successful_records = []
     failed_records = []
 
@@ -261,11 +282,11 @@ def batch_insert_data(
         logger.error("Storage limit check failed. Cannot proceed with insertions.")
         failed_records = [FailedRecord(record, "Storage limit exceeded") for record in records]
         insertion_time = time.time() - start_time
-        cpu_after = psutil.cpu_percent(interval=0.1)
+        system_metrics_after = get_system_metrics() # Capture metrics after operation
         metrics = {
             "insertion_time": insertion_time,
-            "cpu_usage_before": cpu_before,
-            "cpu_usage_after": cpu_after,
+            "system_metrics_before": system_metrics_before,
+            "system_metrics_after": system_metrics_after,
             "records_processed": len(records),
             "successful_records": 0,
             "failed_records": len(failed_records)
@@ -286,11 +307,11 @@ def batch_insert_data(
                         for r in remaining_records
                     ])
                     insertion_time = time.time() - start_time
-                    cpu_after = psutil.cpu_percent(interval=0.1)
+                    system_metrics_after = get_system_metrics()
                     metrics = {
                         "insertion_time": insertion_time,
-                        "cpu_usage_before": cpu_before,
-                        "cpu_usage_after": cpu_after,
+                        "system_metrics_before": system_metrics_before,
+                        "system_metrics_after": system_metrics_after,
                         "records_processed": len(records),
                         "successful_records": len(successful_records),
                         "failed_records": len(failed_records)
@@ -307,11 +328,11 @@ def batch_insert_data(
         time.sleep(2)
 
     insertion_time = time.time() - start_time
-    cpu_after = psutil.cpu_percent(interval=0.1)
+    system_metrics_after = get_system_metrics() # Capture metrics after the operation
     metrics = {
         "insertion_time": insertion_time,
-        "cpu_usage_before": cpu_before,
-        "cpu_usage_after": cpu_after,
+        "system_metrics_before": system_metrics_before,
+        "system_metrics_after": system_metrics_after,
         "records_processed": len(records),
         "successful_records": len(successful_records),
         "failed_records": len(failed_records)
@@ -349,7 +370,8 @@ def retrieve_data_to_file(
     try:
         logger.info(f"Retrieving data from Salesforce object: {salesforce_object}")
         start_time = time.time()
-        cpu_before = psutil.cpu_percent(interval=0.1)
+        system_metrics_before = get_system_metrics()  # Capture metrics before retrieval
+
         query = f"SELECT {', '.join(FIELDS)} FROM {salesforce_object}"
         data = sf.query_all(query)
         records = [{k: v for k, v in record.items() if k != 'attributes'}
@@ -360,12 +382,12 @@ def retrieve_data_to_file(
         output_file = os.path.join(output_dir, f"salesforce_data_{timestamp}.{output_format}")
         save_to_file(records, output_file)
         end_time = time.time()
-        cpu_after = psutil.cpu_percent(interval=0.1)
+        system_metrics_after = get_system_metrics()  # Capture metrics after retrieval
         retrieval_time = end_time - start_time
         metrics = {
             "retrieval_time": retrieval_time,
-            "cpu_usage_before": cpu_before,
-            "cpu_usage_after": cpu_after,
+            "system_metrics_before": system_metrics_before,
+            "system_metrics_after": system_metrics_after,
             "record_count": len(records)
         }
         logger.info(f"Data saved to {output_file} with {len(records)} records.")
@@ -387,38 +409,38 @@ def update_record_by_id(
     """
     logger.info(f"Attempting to update record with Id: {record_id}")
     start_time = time.time()
-    cpu_before = psutil.cpu_percent(interval=0.1)
+    system_metrics_before = get_system_metrics() # System metrics before update
     for attempt in range(max_attempts):
         try:
             response = sf.Account.update(record_id, update_data)
             if response == 204:
                 update_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics() # System metrics after update
                 metrics = {
                     "update_time": update_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after,
                 }
                 logger.info(f"Successfully updated record with Id: {record_id}")
                 return True, None, metrics
             else:
                 update_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics() # System metrics after failed update
                 metrics = {
                     "update_time": update_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after,
                 }
                 logger.warning(f"Update failed for record Id {record_id} with status code: {response}")
                 return False, f"Update failed with status code: {response}", metrics
         except Exception as e:
             if "ENTITY_IS_DELETED" in str(e):
                 update_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics()  # Metrics even if deleted
                 metrics = {
                     "update_time": update_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after,
                 }
                 logger.warning(f"Record {record_id} has been deleted. Skipping update.")
                 return False, "Entity is deleted", metrics
@@ -427,15 +449,17 @@ def update_record_by_id(
                 time.sleep(RETRY_DELAY * (attempt + 1))
             else:
                 update_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics()  # Metrics after max retries
                 metrics = {
                     "update_time": update_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after
                 }
                 logger.error(f"Failed to update record Id {record_id} after {max_attempts} attempts: {e}")
                 return False, str(e), metrics
-    return False, "Max retry attempts reached", {}
+    system_metrics_after = get_system_metrics() # System metrics after all attempts
+    return False, "Max retry attempts reached", {"system_metrics_before": system_metrics_before, "system_metrics_after": system_metrics_after} #Return empty metrics after retry attempts
+
 
 def delete_record_by_id(
     sf: 'Salesforce',
@@ -449,27 +473,27 @@ def delete_record_by_id(
     """
     logger.info(f"Attempting to delete record with Id: {record_id}")
     start_time = time.time()
-    cpu_before = psutil.cpu_percent(interval=0.1)
+    system_metrics_before = get_system_metrics() # System metrics before deletion
     for attempt in range(max_attempts):
         try:
             response = sf.Account.delete(record_id)
             if response == 204:
                 delete_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics() # System metrics after deletion
                 metrics = {
                     "delete_time": delete_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after,
                 }
                 logger.info(f"Successfully deleted record with Id: {record_id}")
                 return True, None, metrics
             else:
                 delete_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics() # Metrics after failed attempt
                 metrics = {
                     "delete_time": delete_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after,
                 }
                 logger.warning(f"Delete failed for record Id {record_id} with status code: {response}")
                 return False, f"Delete failed with status code: {response}", metrics
@@ -479,15 +503,18 @@ def delete_record_by_id(
                 time.sleep(RETRY_DELAY * (attempt + 1))
             else:
                 delete_time = time.time() - start_time
-                cpu_after = psutil.cpu_percent(interval=0.1)
+                system_metrics_after = get_system_metrics() # Metrics after final failed attempt
                 metrics = {
                     "delete_time": delete_time,
-                    "cpu_usage_before": cpu_before,
-                    "cpu_usage_after": cpu_after
+                    "system_metrics_before": system_metrics_before,
+                    "system_metrics_after": system_metrics_after
                 }
                 logger.error(f"Failed to delete record Id {record_id} after {max_attempts} attempts: {e}")
                 return False, str(e), metrics
-    return False, "Max retry attempts reached", {}
+
+    system_metrics_after = get_system_metrics()  # System metrics after all retries fail
+    return False, "Max retry attempts reached", {"system_metrics_before": system_metrics_before, "system_metrics_after": system_metrics_after}
+
 
 def process_uploaded_file(file_path: str) -> Dict[str, Any]:
     logger.info(f"Processing uploaded file: {file_path}")
