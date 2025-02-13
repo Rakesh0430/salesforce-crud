@@ -7,13 +7,13 @@
 
 
 curl -X POST \
-  https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/ \
-  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQNYvMkgZUzAjz6xFLnnL1ULYzKrI28cIG97i5UZVPkx1RoLA1NbrfSyj2qtwrbquFd5PbO5bLxDlss.WXJ2yIDbk31JG' \
+  "https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/" \
+  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQGn1XO8j9fWjb5PLM3uh_Ygsi3MN8eKuUI1z_RCV91FNgDhL.WIJJD_cPUal7mkZBeWTP3Aga62q1gPKLVfQJ3T_xfiC' \
   -H "Content-Type: application/json" \
   -d '{
-    "Name": "TechCorp Solutions",
+    "Name": "rockybhailodem Solutions",
     "AccountNumber": "TECH002",
-    "Site": "East Coast",
+    "Site": "warangal",
     "Type": "Customer - Channel",
     "Industry": "Technology",
     "AnnualRevenue": 7500000,
@@ -23,8 +23,46 @@ curl -X POST \
     "Website": "www.techcorpsolutions.com",
     "TickerSymbol": "TECH",
     "Ownership": "Public",
-    "NumberOfEmployees": 1500
+    "NumberOfEmployees": 150000
   }'
+
+curl -X PATCH \
+  "https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/001WU00000imZGhYAM" \
+  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQGn1XO8j9fWjb5PLM3uh_Ygsi3MN8eKuUI1z_RCV91FNgDhL.WIJJD_cPUal7mkZBeWTP3Aga62q1gPKLVfQJ3T_xfiC' \
+  -H "Content-Type: application/json" \
+  -d '{"Name": "Updated Account Name", "Phone": "415-555-9999", "Website": "www.updated-techcorpsolutions.com"}'
+
+
+
+
+
+
+
+
+#updated credentials which are new 
+
+curl -X POST \
+  "https://iscs7-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/" \
+  -H 'Authorization: Bearer 00DNS00000DQAHB!AQEAQEI5U2akNmR14RqXAH_ZfSucj1t4d7j92WWVlBjbES5_NG.aeZady0LcAjOB9GXWmNQJdObN4HmaEqNB_VnUX7_5F0XW' \
+  -H "Content-Type: application/json" \
+  -d '{
+    "Name": "rockybhai Solutions",
+    "AccountNumber": "TECH002",
+    "Site": "warangal",
+    "Type": "Customer - Channel",
+    "Industry": "Technology",
+    "AnnualRevenue": 7500000,
+    "Rating": "Warm",
+    "Phone": "415-555-0123",
+    "Fax": "415-555-0124",
+    "Website": "www.techcorpsolutions.com",
+    "TickerSymbol": "TECH",
+    "Ownership": "Public",
+    "NumberOfEmployees": 150000
+  }'
+
+  
+
 
 
   curl -X DELETE \
