@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: sfdc-api-pv-data
+  labels:
+    type: local # Or your storage type
+spec:
+  storageClassName: manual # Or your specific storage class if you have one
+  capacity:
+    storage: 1Gi # Adjust size as needed
+  accessModes:
+    - ReadWriteOnce # Suitable for a single pod, or ReadWriteMany if using shared storage like NFS
+  # --- HostPath Example (NOT FOR PRODUCTION - for single-node dev/test only) ---
+  hostPath:
+    path: "/mnt/sfdc-api/data" # Ensure this path exists on your K8s node(s)
+  # persistentVolumeReclaimPolicy: Retain # Or Delete, Recycle
+
+  # --- Example for NFS (Illustrative - uncomment and configure if using NFS) ---
+  # nfs:
+  #   path: /path/to/nfs/share/sfdc-api-data
+  #   server: your-nfs-server-ip-or-hostname
+  #   readOnly: false
+
+  # --- Example for AWS EBS (Illustrative - usually managed by a StorageClass) ---
+  # awsElasticBlockStore:
+  #   volumeID: "vol-xxxxxxxxxxxxxxxxx" # Specific EBS volume ID
+  #   fsType: ext4
+
+  # --- Example for GCE Persistent Disk (Illustrative - usually managed by a StorageClass) ---
+  # gcePersistentDisk:
+  #   pdName: "your-gce-disk-name"
+  #   fsType: ext4
+
+# Note on Production PVs:
+# - Avoid hostPath for multi-node clusters or production.
+# - Use a provisioned StorageClass for dynamic volume provisioning where possible.
+# - If using static provisioning, ensure the PV matches the requirements of your storage backend.
+# - Ensure `persistentVolumeReclaimPolicy` is set appropriately for your data lifecycle needs.
+```

@@ -1,0 +1,67 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sfdc-api-config
+  # namespace: your-namespace # Optional: specify if not default
+data:
+  # Application Configuration
+  DEBUG_MODE: "False" # Production should be False
+  LOG_LEVEL: "INFO"
+  # LOG_FILENAME: "/app/logs/sfdc_api.log" # Example if logging to a file in a mounted volume
+  APP_NAME: "SalesforceIntegrationAPI"
+  API_V1_STR: "/api/v1"
+
+  # CORS - Adjust as needed for your frontend
+  BACKEND_CORS_ORIGINS: "https://your-frontend.example.com,http://localhost:3000" # Example
+
+  # Salesforce Configuration (Non-sensitive parts)
+  # Sensitive parts like CLIENT_SECRET, PASSWORD, USERNAME should be in a Kubernetes Secret
+  SALESFORCE_TOKEN_URL: "https://login.salesforce.com/services/oauth2/token"
+  SALESFORCE_API_VERSION: "v58.0"
+  SALESFORCE_TOKEN_REFRESH_BUFFER: "300"
+
+  # Data paths (these should align with volume mounts if used)
+  DATA_PATH_INPUT: "/mnt/data/input"
+  DATA_PATH_OUTPUT: "/mnt/data/output"
+  DATA_PATH_FAILED: "/mnt/data/failed"
+
+  # Note: Actual Salesforce credentials (CLIENT_ID, CLIENT_SECRET, USERNAME, PASSWORD)
+  # should be stored in a Kubernetes Secret and mounted as environment variables.
+  # Example placeholder for where CLIENT_ID might come from (if not secret):
+  # SALESFORCE_CLIENT_ID: "your-client-id-if-not-from-secret"
+
+  # Example of how to reference a secret for sensitive data:
+  # In your Deployment spec's env section:
+  # - name: SALESFORCE_CLIENT_ID
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: sfdc-api-secrets
+  #       key: salesforce-client-id
+  # - name: SALESFORCE_CLIENT_SECRET
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: sfdc-api-secrets
+  #       key: salesforce-client-secret
+  # - name: SALESFORCE_USERNAME
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: sfdc-api-secrets
+  #       key: salesforce-username
+  # - name: SALESFORCE_PASSWORD
+  #   valueFrom:
+  #     secretKeyRef:
+  #       name: sfdc-api-secrets
+  #       key: salesforce-password
+
+# Example Secret (sfdc-api-secrets.yaml - create separately and apply)
+# apiVersion: v1
+# kind: Secret
+# metadata:
+#   name: sfdc-api-secrets
+# type: Opaque
+# stringData: # Or 'data:' for base64 encoded values
+#   salesforce-client-id: "YOUR_CLIENT_ID"
+#   salesforce-client-secret: "YOUR_CLIENT_SECRET"
+#   salesforce-username: "YOUR_USERNAME"
+#   salesforce-password: "YOUR_PASSWORD_AND_TOKEN"
+```

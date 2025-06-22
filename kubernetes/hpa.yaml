@@ -1,0 +1,60 @@
+apiVersion: autoscaling/v2 # Use v2 for more features like multiple metrics
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sfdc-api-hpa
+  # namespace: your-namespace # Optional
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sfdc-api-deployment # Name of the Deployment to scale
+  minReplicas: 2 # Minimum number of pods
+  maxReplicas: 5 # Maximum number of pods
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization # Target CPU utilization percentage
+          averageUtilization: 75 # Target 75% CPU utilization
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization # Target Memory utilization percentage (less common than AverageValue for memory)
+          # Or use AverageValue for a specific memory amount per pod
+          # type: AverageValue
+          # averageValue: 400Mi # Target e.g. 400Mi memory usage per pod
+          averageUtilization: 75 # Target 75% Memory utilization
+
+  # Optional: Behavior configuration for scaling up/down
+  # behavior:
+  #   scaleDown:
+  #     stabilizationWindowSeconds: 300 # Wait 5 minutes before scaling down after last scale up
+  #     policies:
+  #     - type: Percent
+  #       value: 100 # Scale down by 100% of current replicas (effectively allowing full scale down to minReplicas if needed)
+  #       periodSeconds: 60
+  #     - type: Pods
+  #       value: 2 # Alternatively, scale down by a fixed number of pods
+  #       periodSeconds: 60
+  #     selectPolicy: Max # Select the policy that allows the biggest scale down
+  #   scaleUp:
+  #     stabilizationWindowSeconds: 0 # Scale up immediately if needed
+  #     policies:
+  #     - type: Percent
+  #       value: 100 # Allow doubling the number of pods
+  #       periodSeconds: 15
+  #     - type: Pods
+  #       value: 4 # Allow adding up to 4 pods at a time
+  #       periodSeconds: 15
+  #     selectPolicy: Max # Select the policy that allows the biggest scale up
+
+# Notes:
+# - The Kubernetes Metrics Server must be installed in your cluster for HPA to work with resource metrics (CPU, memory).
+#   `kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml`
+# - `averageUtilization` for CPU is common. For memory, `AverageValue` can sometimes be more predictable than `averageUtilization`.
+# - Adjust `minReplicas`, `maxReplicas`, and target utilization/values based on your application's performance characteristics and expected load.
+# - The `behavior` section (commented out) allows fine-tuning of scaling behavior, introduced in Kubernetes 1.18+.
+# - You can also scale based on custom metrics (e.g., requests per second, queue length) using an adapter like Prometheus Adapter.
+```

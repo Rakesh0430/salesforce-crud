@@ -1,0 +1,80 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sfdc-api-deployment
+  # namespace: your-namespace # Optional
+  labels:
+    app: sfdc-api
+spec:
+  replicas: 2 # Start with 2 replicas, HPA can scale this
+  selector:
+    matchLabels:
+      app: sfdc-api
+  template:
+    metadata:
+      labels:
+        app: sfdc-api
+    spec:
+      containers:
+        - name: sfdc-api-container
+          image: your-docker-registry/sfdc-api:latest # Replace with your actual image path and tag
+          imagePullPolicy: Always # Or IfNotPresent if using local/cached images often
+          ports:
+            - containerPort: 8000 # Port the application listens on inside the container
+          envFrom:
+            - configMapRef:
+                name: sfdc-api-config # Load non-sensitive config from ConfigMap
+            # Mount sensitive data from Secrets
+            - secretRef:
+                name: sfdc-api-secrets # Assumes a Secret named 'sfdc-api-secrets' exists
+          # env: # Additional specific environment variables if needed
+          #   - name: SOME_OTHER_VAR
+          #     value: "some_value"
+          resources:
+            requests: # Minimum resources requested
+              memory: "256Mi"
+              cpu: "250m" # 0.25 CPU core
+            limits: # Maximum resources the container can consume
+              memory: "512Mi"
+              cpu: "500m" # 0.5 CPU core
+          volumeMounts:
+            - name: sfdc-api-data-volume
+              mountPath: /mnt/data # Mount path for PV/PVC data (e.g., for file uploads/outputs)
+                                   # This path should align with DATA_PATH_* in ConfigMap if they point here
+            # Example for log file persistence if LOG_FILENAME is set to e.g. /app/logs/sfdc_api.log
+            # - name: sfdc-api-log-volume
+            #   mountPath: /app/logs
+          livenessProbe:
+            httpGet:
+              path: /health # Your application's health check endpoint
+              port: 8000
+            initialDelaySeconds: 30 # Time to wait before first probe
+            periodSeconds: 15     # How often to probe
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health # Your application's readiness endpoint
+              port: 8000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+      volumes:
+        - name: sfdc-api-data-volume
+          persistentVolumeClaim:
+            claimName: sfdc-api-pvc-data # Name of the PVC created earlier
+        # - name: sfdc-api-log-volume # Example for log persistence
+        #   persistentVolumeClaim:
+        #     claimName: sfdc-api-pvc-logs # Requires another PVC for logs
+
+# Notes:
+# - Replace `your-docker-registry/sfdc-api:latest` with your actual Docker image.
+# - Ensure `sfdc-api-config` ConfigMap and `sfdc-api-secrets` Secret are created in the same namespace.
+# - Adjust `replicas`, `resources` (requests/limits), and probe settings based on your application's needs and cluster capacity.
+# - The `volumeMounts` and `volumes` section is for persisting data using the PVC.
+#   If your application doesn't need to write files to a persistent disk (e.g., all file processing is in-memory
+#   or uses external object storage like S3), you might not need PV/PVC for data.
+#   However, the request mentioned PV/PVC, so it's included for file path processing.
+#   The `DATA_PATH_INPUT`, `DATA_PATH_OUTPUT` in the ConfigMap should point to subdirectories within `/mnt/data`.
+```

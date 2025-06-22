@@ -1,8 +1,45 @@
-pandas
-requests
-simple-salesforce
-fastapi
-uvicorn
-gradio
-python-dotenv
-httpx
+# FastAPI and Uvicorn
+fastapi>=0.100.0,<0.112.0
+uvicorn[standard]>=0.22.0,<0.30.0
+
+# HTTP client
+httpx>=0.24.0,<0.28.0
+
+# Salesforce interaction (alternative, if not building all raw HTTP requests)
+# simple-salesforce>=1.12.0,<2.0.0 # Consider if direct httpx is too complex for some parts
+
+# Pydantic for data validation and settings management
+# For Pydantic v1.x (common with older FastAPI versions or specific needs)
+# pydantic[email]>=1.10.0,<2.0.0
+# For Pydantic v2.x (FastAPI 0.100+ often uses v2)
+pydantic[email]>=2.0.0,<3.0.0
+pydantic-settings>=2.0.0 # For Pydantic v2 style settings
+
+# Environment variable management
+python-dotenv>=1.0.0,<2.0.0
+
+# Data handling (CSV, potentially others)
+pandas>=1.5.0,<2.3.0 # For robust CSV/data manipulation, used in one of the original scripts.
+# openpyxl # If Excel file support is needed
+# lxml # If XML parsing/generation is needed beyond basic etree
+
+# System metrics (already used in provided scripts)
+psutil>=5.9.0,<6.0.0
+
+# Logging (standard library, but listing for clarity of dependencies)
+
+# Testing (usually in a dev requirements file or pyproject.toml)
+# pytest>=7.0.0,<9.0.0
+# pytest-asyncio>=0.20.0,<0.24.0
+# respx>=0.20.0,<0.22.0 # For mocking HTTPX requests
+# coverage
+
+# Linters and Formatters (development dependencies)
+# flake8
+# black
+# isort
+# mypy
+
+# Optional: For Gunicorn if used as a process manager in Docker
+# gunicorn
+```
