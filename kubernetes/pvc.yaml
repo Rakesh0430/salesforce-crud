@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sfdc-api-pvc-data
+  # namespace: your-namespace # Optional
+spec:
+  # storageClassName: manual # Match the PV's storageClassName if statically binding
+  # Or, if using dynamic provisioning, specify your StorageClass:
+  # storageClassName: your-dynamic-storage-class (e.g., "gp2" on AWS, "standard" on GKE)
+  # If storageClassName is omitted and a default StorageClass is configured in K8s, it will be used.
+  # For static binding to the PV created earlier (sfdc-api-pv-data):
+  storageClassName: manual # Must match the PV
+  # selector: # Optionally use labels to select a specific PV
+  #   matchLabels:
+  #     type: local # Must match labels on the PV
+
+  accessModes:
+    - ReadWriteOnce # Must be compatible with the PV's accessModes
+  resources:
+    requests:
+      storage: 1Gi # Should be less than or equal to the PV's capacity if statically binding
+
+# Notes:
+# - If using dynamic provisioning with a StorageClass, K8s will automatically create a PV.
+# - If statically binding to the `sfdc-api-pv-data` defined in `pv.yaml`:
+#   - Ensure `storageClassName` matches.
+#   - Ensure `accessModes` are compatible.
+#   - Ensure requested `storage` is available on the PV.
+# - The PVC must be in the `Bound` state before a Pod can use it.
+```

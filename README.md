@@ -1,240 +1,204 @@
+# Salesforce Integration API
 
-{
-  "Name": "Acme Corporation Updated",
-  "AnnualRevenue": 5000000,
-  "Phone": "+1-555-123-4567"
-}
+Production-grade API for dynamic Salesforce object integration, supporting generic CRUD operations (Create, Retrieve, Update, Delete, Upsert) and Bulk API 2.0 functionalities for any standard or custom Salesforce SObject.
 
+## Features
 
-curl -X POST \
-  "https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/" \
-  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQGn1XO8j9fWjb5PLM3uh_Ygsi3MN8eKuUI1z_RCV91FNgDhL.WIJJD_cPUal7mkZBeWTP3Aga62q1gPKLVfQJ3T_xfiC' \
-  -H "Content-Type: application/json" \
-  -d '{
-    "Name": "rockybhailodem Solutions",
-    "AccountNumber": "TECH002",
-    "Site": "warangal",
-    "Type": "Customer - Channel",
-    "Industry": "Technology",
-    "AnnualRevenue": 7500000,
-    "Rating": "Warm",
-    "Phone": "415-555-0123",
-    "Fax": "415-555-0124",
-    "Website": "www.techcorpsolutions.com",
-    "TickerSymbol": "TECH",
-    "Ownership": "Public",
-    "NumberOfEmployees": 150000
-  }'
+- **Dynamic SObject Handling**: Perform operations on any Salesforce object by specifying its API name.
+- **Standard REST API Operations for Single Records**:
+    - Create new records.
+    - Retrieve records by ID, with optional field selection.
+    - Update existing records by ID.
+    - Delete records by ID.
+    - Upsert records based on an external ID.
+    - Describe SObject metadata.
+- **Batch REST API Operations**: Process a list of records from a direct payload using iterative REST API calls via the `/records/batch` endpoint.
+- **Bulk API 2.0 Support**:
+    - Submit DML jobs: `insert`, `update`, `upsert`, `delete`, `hardDelete`.
+    - Process data from uploaded files (CSV, JSON).
+    - Process data from local server file paths (as specified in payload).
+    - Process data from a direct list of records in the payload.
+    - Submit asynchronous SOQL query jobs (`query`, `queryAll`).
+    - Endpoints to check job status and retrieve results (successful, failed, unprocessed records as CSV).
+- **Flexible Processing Control**: Use the `use_bulk_api` flag for file-based and direct batch processing to choose between Bulk API and iterative REST API calls.
+- **Salesforce Authentication**: Secure OAuth 2.0 Password Flow with automatic token management (caching, refresh).
+- **Configuration**: Environment variable-driven configuration for Salesforce credentials and application settings.
+- **Logging**: Comprehensive request and application logging with rotating file handler.
+- **Error Handling**: Consistent error responses.
+- **Asynchronous**: Built with FastAPI and `httpx` for non-blocking I/O.
+- **Dockerized**: Comes with `Dockerfile` and `docker-compose.yml` for easy setup and deployment.
+- **Kubernetes Ready**: Includes example Kubernetes manifests for deployment (`Deployment`, `Service`, `HPA`, `ConfigMap`, `PV`, `PVC`, `Secrets example`).
+- **CI/CD Pipeline**: Basic GitHub Actions workflow for linting, testing, and Docker image building.
 
-curl -X PATCH \
-  "https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/001WU00000imZGhYAM" \
-  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQGn1XO8j9fWjb5PLM3uh_Ygsi3MN8eKuUI1z_RCV91FNgDhL.WIJJD_cPUal7mkZBeWTP3Aga62q1gPKLVfQJ3T_xfiC' \
-  -H "Content-Type: application/json" \
-  -d '{"Name": "Updated Account Name", "Phone": "415-555-9999", "Website": "www.updated-techcorpsolutions.com"}'
+## Project Structure
 
+```
+.
+├── .github/workflows/        # CI/CD pipeline (ci.yml)
+├── kubernetes/               # Kubernetes manifests
+│   ├── configmap.yaml
+│   ├── deployment.yaml
+│   ├── hpa.yaml
+│   ├── pv.yaml
+│   ├── pvc.yaml
+│   ├── secrets.yaml.example
+│   └── service.yaml
+├── src/
+│   ├── app/                  # FastAPI application, routers (sfdc.py), main entrypoint (main.py)
+│   ├── core/                 # Core logic: config.py, schemas.py, models.py
+│   ├── salesforce/           # Salesforce specific logic: auth.py, client.py, operations.py
+│   ├── utils/                # Utility functions: data_handler.py, logger.py
+│   └── tests/                # Unit and integration tests (conftest.py, test_*.py)
+├── .env.example              # Example environment variables
+├── .gitignore
+├── Dockerfile
+├── docker-compose.yml
+├── README.md
+└── requirements.txt
+```
 
+## Prerequisites
 
+- Python 3.10+ (as per `Dockerfile`, `python:3.11-slim`)
+- Docker & Docker Compose (for containerized setup)
+- Salesforce Connected App credentials (Client ID, Client Secret)
+- Salesforce user credentials (Username, Password + Security Token)
 
+## Setup and Running Locally
 
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository_url>
+    cd <repository_name>
+    ```
 
+2.  **Create and configure environment file:**
+    Copy `.env.example` to `.env` and fill in your Salesforce Connected App and user credentials:
+    ```bash
+    cp .env.example .env
+    # Edit .env with your details
+    ```
+    Key variables to set:
+    - `SALESFORCE_CLIENT_ID`
+    - `SALESFORCE_CLIENT_SECRET`
+    - `SALESFORCE_USERNAME`
+    - `SALESFORCE_PASSWORD` (append security token if needed, e.g., `mypasswordMYTOKEN`)
+    - `SALESFORCE_TOKEN_URL` (if using a My Domain or different login server, e.g., `https://yourdomain.my.salesforce.com/services/oauth2/token`)
 
+3.  **Build and run with Docker Compose:**
+    This is the recommended way to run for development and testing.
+    ```bash
+    # (Optional) Create local directories for data volume mounts if specified in docker-compose.yml
+    # mkdir -p local_data/input local_data/output local_data/failed logs
 
-#updated credentials which are new 
+    docker-compose up --build
+    ```
+    The API will be available at `http://localhost:8000`.
+    Interactive API documentation (Swagger UI) at `http://localhost:8000/docs`.
+    Alternative API documentation (ReDoc) at `http://localhost:8000/redoc`.
 
-curl -X POST \
-  "https://iscs7-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/" \
-  -H 'Authorization: Bearer 00DNS00000DQAHB!AQEAQEI5U2akNmR14RqXAH_ZfSucj1t4d7j92WWVlBjbES5_NG.aeZady0LcAjOB9GXWmNQJdObN4HmaEqNB_VnUX7_5F0XW' \
-  -H "Content-Type: application/json" \
-  -d '{
-    "Name": "rockybhai Solutions",
-    "AccountNumber": "TECH002",
-    "Site": "warangal",
-    "Type": "Customer - Channel",
-    "Industry": "Technology",
-    "AnnualRevenue": 7500000,
-    "Rating": "Warm",
-    "Phone": "415-555-0123",
-    "Fax": "415-555-0124",
-    "Website": "www.techcorpsolutions.com",
-    "TickerSymbol": "TECH",
-    "Ownership": "Public",
-    "NumberOfEmployees": 150000
-  }'
+4.  **Running without Docker (Virtual Environment - for development):**
+    *   Create a virtual environment:
+        ```bash
+        python -m venv venv
+        source venv/bin/activate  # On Windows: venv\Scripts\activate
+        ```
+    *   Install dependencies:
+        ```bash
+        pip install -r requirements.txt
+        ```
+    *   Run the FastAPI application:
+        ```bash
+        uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload
+        ```
 
-  
+## API Endpoints
 
+Base URL: `http://localhost:8000/api/v1` (or as configured by `API_V1_STR`)
 
+Refer to the OpenAPI documentation at `/docs` for detailed information on request/response schemas and available endpoints. Key endpoints include:
 
-  curl -X DELETE \
-  https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/Account/created_id \
-  -H 'Authorization: Bearer 00DWU00000DJWWu!AQEAQNYvMkgZUzAjz6xFLnnL1ULYzKrI28cIG97i5UZVPkx1RoLA1NbrfSyj2qtwrbquFd5PbO5bLxDlss.WXJ2yIDbk31JG'
+**Single Record REST API Operations:**
+*   `POST /records/create`: Create a single record.
+    *   Payload: `{ "object_name": "Account", "data": {"Name": "New Account"} }`
+*   `GET /records/{object_name}/{record_id}`: Retrieve a record by its Salesforce ID.
+    *   Optional query param: `fields=Name,Industry`
+*   `PATCH /records/update`: Update a single record by its Salesforce ID.
+    *   Payload: `{ "object_name": "Account", "record_id": "001...", "data": {"Industry": "Technology"} }`
+*   `POST /records/upsert`: Upsert a single record using an external ID.
+    *   Payload: `{ "object_name": "Contact", "external_id_field": "LegacyID__c", "record_id": "legacy-contact-123", "data": {"LastName": "Smith", "Email": "smith@example.com"} }` (Note: `record_id` here holds the external ID value).
+*   `DELETE /records/{object_name}/{record_id}`: Delete a record by its Salesforce ID.
+*   `GET /sobjects/{object_name}/describe`: Get SObject metadata.
 
+**Batch & Bulk Operations:**
+*   `POST /records/batch`: Process a list of records provided directly in the payload.
+    *   Payload: `{ "object_name": "Lead", "operation_type": "create", "records": [{"Company": "Lead1"}, {"Company": "Lead2"}], "use_bulk_api": false, "external_id_field": "optional_for_upsert" }`
+    *   Switches between iterative REST calls or a Bulk API job based on `use_bulk_api` flag.
+*   `POST /bulk/dml-file-upload?object_name=...&operation_type=...&external_id_field=...`: Submit a Bulk API DML job using an uploaded file (CSV/JSON).
+*   `POST /bulk/local-file-process`: Process records from a local server file path (specified in payload), using Bulk API or iterative REST based on `use_bulk_api` flag.
+    *   Payload: `{ "object_name": "Account", "use_bulk_api": true, "file_path": "/mnt/data/input/accounts.csv", "operation_type": "insert" }`
+*   `POST /bulk/dml-direct-payload`: Submit a Bulk API DML job with a list of records in the payload.
+    *   Payload: `{ "object_name": "Case", "operation": "update", "records": [{"Id": "500...", "Status": "Closed"}] }`
+*   `POST /bulk/query-submit`: Submit a Bulk API SOQL query job.
+    *   Payload: `{ "object_name": "Contact", "soql_query": "SELECT Id, Email FROM Contact WHERE CustomField__c = 'value'", "operation": "query" }`
+*   `GET /bulk/job/{job_id}/status?is_query_job=false&include_results_data=false`: Get Bulk API job status. Optionally include results if job is complete.
 
+**Health & Metrics:**
+*   `GET /health`: Basic health check.
+*   `GET /metrics`: Detailed system and application metrics.
 
+## Configuration
 
+The application is configured via environment variables. See `.env.example` for all available options.
 
-  import requests
-
-# Salesforce OAuth2 credentials
-client_id = 
-client_secret = 
-username = 
-password = 
-token_url = 
-
-# Create a dictionary for the OAuth2 parameters
-params = {
-    "grant_type": "password",
-    "client_id": client_id,
-    "client_secret": client_secret,
-    "username": username,
-    "password": password
-}
-
-# Send POST request to obtain the access token
-try:
-    response = requests.post(token_url, data=params)
-    response.raise_for_status()  # Check for HTTP errors
-    access_token_info = response.json()  # Parse JSON response
-    access_token = access_token_info.get("access_token")
-
-    if access_token:
-        print("Access Token:", access_token)
-    else:
-        print("Error:", access_token_info.get("error_description"))
-
-except requests.exceptions.HTTPError as http_err:
-    print(f"HTTP error occurred: {http_err}")
-except Exception as err:
-    print(f"Other error occurred: {err}")
-
-
-
-
-
-# code for acessing the salesforce instance url
-
-import requests
-client_id =
-client_secret = 
-username = 
-password = 
-token_url =
-
-# Prepare the payload
-payload = {
-    "grant_type": "password",
-    "client_id": client_id,
-    "client_secret": client_secret,
-    "username": username,
-    "password": password
-}
-
-# Send the POST request
-response = requests.post(token_url, data=payload)
-
-# Parse the response
-if response.status_code == 200:
-    result = response.json()
-    instance_url = result.get("instance_url")
-    print("Instance URL:", instance_url)
-else:
-    print("Error:", response.text)
-
-
-# salesforce rest api of a cutom object named ISCS__C given below for reference
-
-https://iscstech4-dev-ed.develop.my.salesforce.com/services/data/v58.0/sobjects/ISCS__c/
-
-
-
-Step 1: Log in to Salesforce
-Open your web browser and navigate to your Salesforce org.
-Enter your username and password to log in.
-
-Step 2: Access Object Manager
-Click the gear icon (⚙️) in the upper-right corner of Salesforce.
-Select Setup from the dropdown menu.
-On the Setup page, type Object Manager into the Quick Find box (on the left-hand side).
-Click Object Manager in the search results.
-
-
-Step 3: Create a New Custom Object
-On the Object Manager page, click the Create dropdown in the upper-right corner.
-Select Custom Object.
-Fill in the details for your custom object:
-Label: ISCS
-Plural Label: ISCS Records
-Object Name: ISCS (auto-filled based on the Label).
-Record Name:
-Choose Data Type:
-If you want an auto-generated record name, choose Auto Number and use a format like ISCS-{0000}.
-For manual input, select Text.
-Allow Reports: Check this box.
-Allow Activities: Check this box.
-Allow Search: Check this box.
-Deployment Status: Set to Deployed.
-Click Save.
+| Variable                         | Description                                                                 | Default (from `src/core/config.py`)      |
+| -------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------- |
+| `DEBUG_MODE`                     | Enable debug mode (e.g., for verbose logging, auto-reload)                | `False`                                        |
+| `APP_NAME`                       | Application Name for logging and documentation                            | `SalesforceIntegrationAPI`                     |
+| `APP_VERSION`                    | Application Version                                                         | `1.0.0`                                        |
+| `API_V1_STR`                     | API version prefix for routes                                               | `/api/v1`                                      |
+| `SALESFORCE_CLIENT_ID`           | Salesforce Connected App Client ID                                          | **Required in `.env`**                         |
+| `SALESFORCE_CLIENT_SECRET`       | Salesforce Connected App Client Secret                                      | **Required in `.env`**                         |
+| `SALESFORCE_USERNAME`            | Salesforce Username                                                         | **Required in `.env`**                         |
+| `SALESFORCE_PASSWORD`            | Salesforce Password (append security token if IP restrictions not set up)   | **Required in `.env`**                         |
+| `SALESFORCE_TOKEN_URL`           | Salesforce OAuth token endpoint                                             | `https://login.salesforce.com/services/oauth2/token` |
+| `SALESFORCE_API_VERSION`         | Salesforce API version to use                                               | `v58.0`                                        |
+| `SALESFORCE_TOKEN_REFRESH_BUFFER`| Seconds before token expiry to attempt refresh                              | `300`                                          |
+| `LOG_LEVEL`                      | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL)                       | `INFO`                                         |
+| `LOG_FILENAME`                   | Path to log file. If empty, logs only to console.                           | `sfdc_api.log` (or None if env var missing)  |
+| `LOG_MAX_BYTES`                  | Max bytes for rotating log file                                             | `10485760` (10MB)                            |
+| `LOG_BACKUP_COUNT`               | Number of backup log files to keep                                          | `5`                                            |
+| `BACKEND_CORS_ORIGINS`           | Comma-separated list of allowed CORS origins (e.g. "http://localhost,https://my.app") | `[]` (empty list)                            |
+| `DATA_PATH_INPUT`                | Default path for input files (used by `/bulk/local-file-process`)           | `/app/data/input` (within container)         |
+| `DATA_PATH_OUTPUT`               | Default path for output files (if any generated)                            | `/app/data/output` (within container)        |
+| `DATA_PATH_FAILED`               | Default path for storing details of failed records from file processing     | `/app/data/failed` (within container)        |
 
 
-Step 4: Add Custom Fields
-After creating the ISCS object, you'll be redirected to its details page.
-If not, search for ISCS in Object Manager and select it.
-In the sidebar, click Fields & Relationships.
-Click New to add a new custom field.
-Fields to Create
-Follow these steps for each field:
+## Kubernetes Deployment
 
-Select the Field Type and click Next.
-Fill in the field details:
-Field Label: Name of the field (e.g., "Customer Name").
-Field Name: Auto-filled based on the label.
-Specify additional attributes (e.g., length, precision, required).
-Set the Field Level Security:
-Choose which profiles can see or edit the field.
-Add the field to the page layout by selecting Add Field to All Page Layouts.
-Click Save & New to create another field or Save to finish.
+Example Kubernetes manifests are provided in the `/kubernetes` directory:
+- `configmap.yaml`: For managing non-sensitive environment variables.
+- `secrets.yaml.example`: Template for creating Kubernetes Secrets for sensitive data (like Salesforce credentials). **You must create your own `secrets.yaml` from this template.**
+- `pv.yaml` & `pvc.yaml`: Example for persistent storage (e.g., if processing files from a shared volume). These are generic and need adaptation to your cluster's storage solution (avoid `hostPath` in production).
+- `deployment.yaml`: Defines the application deployment, referencing the ConfigMap and Secrets.
+- `service.yaml`: Exposes the application within the cluster (default `ClusterIP`). Includes notes on `NodePort` and `LoadBalancer` types.
+- `hpa.yaml`: Configures Horizontal Pod Autoscaler based on CPU/memory.
 
+**Note:** These are example manifests. You'll need to customize them for your specific Kubernetes environment, especially regarding ConfigMap data, actual secret creation, ingress controllers, persistent volume details, and image paths in `deployment.yaml`.
 
-Example Fields
-Here are some examples of fields to create:
+## CI/CD
 
-Field Label	Field Type	Description
-Customer Name	Text (255)	Full name of the customer
-Email Address	Email	Customer's email address
-Phone Number	Phone	Customer's phone number
-Registration Date	Date	Date the customer was registered
-Is Active	Checkbox	Indicates if the customer is active
-Account Balance	Currency	Customer's account balance
-Customer ID	Auto Number	Unique identifier for each customer (e.g., ISCS-{0001})
+A basic CI/CD pipeline is defined in `.github/workflows/ci.yml`. It includes:
+1.  **Linting**: Using Flake8.
+2.  **Testing**: Running unit and integration tests with Pytest.
+3.  **Docker Build**: Building the Docker image.
+    (Pushing to a registry is commented out and requires secrets configuration).
 
+## Contributing
 
-Step 5: Create a Tab for the ISCS Object
-In Setup, type Tabs in the Quick Find box.
-Click Tabs under User Interface.
-Under Custom Object Tabs, click New.
-Select ISCS from the Object dropdown.
-Choose a Tab Style (e.g., a relevant icon for ISCS).
-Click Next, then assign the tab to profiles and apps.
-Click Save.
+Please refer to `CONTRIBUTING.md` for guidelines (to be created).
 
+## License
 
-Step 6: Add Data to the ISCS Object
-Navigate to the ISCS object tab (if created) or use the App Launcher to find the object.
-Click New to create a new record.
-Fill in the fields with sample data:
-Customer Name: John Doe
-Email Address: john.doe@example.com
-Phone Number: +1 123 456 7890
-Registration Date: 01/01/2025
-Is Active: Checked
-Account Balance: $1000
-Click Save.
-
-
-Step 7: Test and Verify
-Go to the ISCS object tab and check if the sample records are visible.
-Confirm that you can view and edit the fields.
-Use the Global Search bar to confirm the object is searchable (if search is enabled).
-
-
+This project is licensed under the MIT License - see the `LICENSE` file for details (to be created or confirmed).
+```

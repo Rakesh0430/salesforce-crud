@@ -1,0 +1,137 @@
+name: Python CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11"] # Specify Python versions to test against
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install flake8 pytest pytest-asyncio httpx # Add other test-specific dependencies here
+          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+        # Note: For a project with more complex dev dependencies, consider a requirements-dev.txt
+        # or using Poetry/PDM and installing dev groups.
+
+      - name: Lint with Flake8
+        run: |
+          # stop the build if there are Python syntax errors or undefined names
+          flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+          # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+          flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+        # Consider adding Black for formatting checks or MyPy for type checking in a more advanced setup.
+
+      - name: Test with Pytest
+        run: |
+          # Set PYTHONPATH if your tests are not found or imports fail from project root
+          # export PYTHONPATH=$(pwd) # current directory (root of repo)
+          # pytest src/tests/ # Or simply 'pytest' if tests are discoverable
+          pytest # Pytest should auto-discover tests in src/tests based on conftest.py setup
+        env:
+          # Set environment variables required for tests, even if mocked.
+          # These should match what conftest.py might expect if it didn't set them itself.
+          SALESFORCE_CLIENT_ID: "test_ci_client_id"
+          SALESFORCE_CLIENT_SECRET: "test_ci_client_secret"
+          SALESFORCE_USERNAME: "test_ci_username"
+          SALESFORCE_PASSWORD: "test_ci_password"
+          SALESFORCE_TOKEN_URL: "https://login.salesforce.com/services/oauth2/token"
+          API_V1_STR: "/api/v1" # Ensure this matches your app config for tests
+          DEBUG_MODE: "True"
+          LOG_LEVEL: "DEBUG"
+          # Add any other env vars your app/tests might need at runtime, even if mocked by conftest
+
+  build-docker-image:
+    needs: lint-and-test # Run this job only if lint-and-test succeeds
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Login to Docker Hub (example - requires DOCKER_USERNAME and DOCKER_PASSWORD secrets)
+      # - name: Login to Docker Hub
+      #   uses: docker/login-action@v3
+      #   with:
+      #     username: ${{ secrets.DOCKER_HUB_USERNAME }}
+      #     password: ${{ secrets.DOCKER_HUB_ACCESS_TOKEN }} # Use Access Token for Docker Hub
+
+      # Login to GitHub Container Registry (GHCR) (example)
+      # - name: Login to GitHub Container Registry
+      #   uses: docker/login-action@v3
+      #   with:
+      #     registry: ghcr.io
+      #     username: ${{ github.actor }}
+      #     password: ${{ secrets.GITHUB_TOKEN }} # GITHUB_TOKEN is automatically available
+
+      - name: Build Docker image
+        run: |
+          docker build -t sfdc-api-image:${{ github.sha }} .
+          # docker build -t your-registry/your-app-name:latest . # Example for specific tagging
+          # docker build -t your-registry/your-app-name:${{ github.ref_name }}-${{ github.sha }} .
+
+      # (Optional) Push Docker image - Uncomment and configure if needed
+      # This step would typically only run on pushes to specific branches (e.g., main, develop)
+      # - name: Push Docker image to Docker Hub
+      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      #   run: |
+      #     IMAGE_ID=your-dockerhub-username/sfdc-api # Replace with your Docker Hub username/repo
+      #     # Strip 'refs/heads/' prefix from branch to use as tag (e.g., main, develop)
+      #     BRANCH_TAG=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+      #     # Use commit SHA for unique versioning
+      #     VERSION_TAG=${{ github.sha }}
+      #     # Tag image
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:$BRANCH_TAG
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:$VERSION_TAG
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:latest # Optionally tag latest
+      #     # Push image
+      #     docker push $IMAGE_ID:$BRANCH_TAG
+      #     docker push $IMAGE_ID:$VERSION_TAG
+      #     docker push $IMAGE_ID:latest
+
+      # - name: Push Docker image to GitHub Container Registry
+      #   if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop')
+      #   run: |
+      #     IMAGE_ID=ghcr.io/${{ github.repository_owner }}/sfdc-api # ghcr.io/OWNER/IMAGE_NAME
+      #     BRANCH_TAG=$(echo "${{ github.ref }}" | sed -e 's,.*/\(.*\),\1,')
+      #     VERSION_TAG=${{ github.sha }}
+      #     # Tag image
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:$BRANCH_TAG
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:$VERSION_TAG
+      #     docker tag sfdc-api-image:${{ github.sha }} $IMAGE_ID:latest
+      #     # Push image
+      #     docker push $IMAGE_ID:$BRANCH_TAG
+      #     docker push $IMAGE_ID:$VERSION_TAG
+      #     docker push $IMAGE_ID:latest
+
+# Notes for further enhancement:
+# - Add caching for pip dependencies to speed up builds.
+# - Consider splitting linting, testing, and building into separate jobs if they become too slow or complex.
+# - Implement vulnerability scanning for the Docker image (e.g., using Trivy or Snyk).
+# - Add a deployment step (e.g., `kubectl apply -f kubernetes/` or Helm chart deployment) if desired,
+#   which would require K8s cluster access secrets and configuration.
+# - For Python projects using Poetry or PDM, adjust dependency installation steps accordingly.
+# - The `pytest` command might need `PYTHONPATH=. pytest` or similar if tests are not found.
+#   The current `conftest.py` attempts to handle this with `sys.path.insert`.
+```
