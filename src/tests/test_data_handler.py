@@ -69,6 +69,7 @@ async def test_read_file_data_for_bulk_unsupported_type():
         await read_file_data_for_bulk(upload_file)
     assert exc_info.value.status_code == 400
     assert "Unsupported file type" in exc_info.value.detail
+    assert "CSV, JSON, or XML" in exc_info.value.detail
 
 async def test_read_file_data_for_bulk_malformed_json():
     json_content = '[{"Name": "Test User", "Age": 30}, {"Name": "Jane Doe", "Age": 25' # Malformed
@@ -92,6 +93,63 @@ async def test_read_file_data_for_bulk_empty_json_list():
     upload_file = UploadFile(filename="test.json", file=file_bytes)
     records = await read_file_data_for_bulk(upload_file)
     assert len(records) == 0
+
+async def test_read_file_data_for_bulk_xml_success_records_root():
+    xml_content = "<records><record><Name>Test User</Name><ID>1</ID></record><record><Name>Another</Name><ID>2</ID></record></records>"
+    file_bytes = BytesIO(xml_content.encode('utf-8'))
+    upload_file = UploadFile(filename="test.xml", file=file_bytes)
+    records = await read_file_data_for_bulk(upload_file)
+    assert len(records) == 2
+    assert records[0] == {"Name": "Test User", "ID": "1"}
+    assert records[1] == {"Name": "Another", "ID": "2"}
+
+async def test_read_file_data_for_bulk_xml_success_custom_root():
+    xml_content = "<data><item><Name>Test User</Name></item></data>".replace("item>", "record>") # use record tag
+    file_bytes = BytesIO(xml_content.encode('utf-8'))
+    upload_file = UploadFile(filename="test.xml", file=file_bytes)
+    records = await read_file_data_for_bulk(upload_file)
+    assert len(records) == 1
+    assert records[0] == {"Name": "Test User"}
+
+async def test_read_file_data_for_bulk_xml_malformed():
+    xml_content = "<records><record><Name>Test User</Name><ID>1</ID></record><record><Name>Another</Name><ID>2</ID></records" # Malformed
+    file_bytes = BytesIO(xml_content.encode('utf-8'))
+    upload_file = UploadFile(filename="test.xml", file=file_bytes)
+    with pytest.raises(HTTPException) as exc_info:
+        await read_file_data_for_bulk(upload_file)
+    assert exc_info.value.status_code == 400
+    assert "Invalid XML format" in exc_info.value.detail
+
+async def test_read_file_data_for_bulk_xml_empty_records_tag():
+    xml_content = "<records></records>"
+    file_bytes = BytesIO(xml_content.encode('utf-8'))
+    upload_file = UploadFile(filename="test.xml", file=file_bytes)
+    records = await read_file_data_for_bulk(upload_file)
+    assert len(records) == 0
+
+async def test_read_file_data_for_bulk_xml_no_record_elements():
+    xml_content = "<data><item><Name>Test User</Name></item></data>" # No 'record' elements
+    file_bytes = BytesIO(xml_content.encode('utf-8'))
+    upload_file = UploadFile(filename="test.xml", file=file_bytes)
+    records = await read_file_data_for_bulk(upload_file)
+    assert len(records) == 0
+
+async def test_read_file_data_for_bulk_xml_unsupported_encoding():
+    xml_content = "<records><record><Name>Test User</Name></record></records>"
+    file_bytes = BytesIO(xml_content.encode('latin-1')) # Encode with latin-1
+    upload_file = UploadFile(filename="test.xml", file=file_bytes, headers={"content-type": "application/xml; charset=latin-1"}) # Specify charset
+    # Temporarily modify the function to simulate it trying to decode with only utf-8 for this test case, or expect FileParsingError
+    # The function is now hardcoded to try utf-8 first for XML.
+    # If content is not utf-8, it should raise FileParsingError.
+    with pytest.raises(HTTPException) as exc_info:
+         # Create a new UploadFile with latin-1 encoded content
+        latin1_content = "<récords><récord><Náme>Tést Üser</Náme></récord></récords>".encode('latin-1')
+        file_bytes_latin1 = BytesIO(latin1_content)
+        upload_file_latin1 = UploadFile(filename="test_latin1.xml", file=file_bytes_latin1)
+        await read_file_data_for_bulk(upload_file_latin1) # Function expects utf-8
+
+    assert exc_info.value.status_code == 400
+    assert "Unsupported file encoding for XML" in exc_info.value.detail
 
 
 # --- Tests for read_data_from_local_file ---
@@ -121,6 +179,30 @@ def temp_xml_file(tmp_path): # Basic XML for testing structure
         f.write(content)
     return str(file_path)
 
+@pytest.fixture
+def temp_malformed_xml_file(tmp_path):
+    file_path = tmp_path / "malformed.xml"
+    content = "<records><record><fieldA>A1</fieldA><fieldB>B1</record></records>" # Missing closing fieldB tag
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return str(file_path)
+
+@pytest.fixture
+def temp_empty_xml_file(tmp_path):
+    file_path = tmp_path / "empty.xml"
+    content = "<records></records>"
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return str(file_path)
+
+@pytest.fixture
+def temp_no_records_xml_file(tmp_path):
+    file_path = tmp_path / "no_records.xml"
+    content = "<data><item>A1</item></data>" # No 'record' elements
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    return str(file_path)
+
 
 async def test_read_data_from_local_file_csv(temp_csv_file):
     records = await read_data_from_local_file(temp_csv_file)
@@ -139,6 +221,30 @@ async def test_read_data_from_local_file_xml(temp_xml_file):
     assert records[0] == {"fieldA": "A1", "fieldB": "B1"}
     assert records[1] == {"fieldA": "A2", "fieldB": "B2"}
 
+async def test_read_data_from_local_file_xml_malformed(temp_malformed_xml_file):
+    with pytest.raises(HTTPException) as exc_info:
+        await read_data_from_local_file(temp_malformed_xml_file)
+    assert exc_info.value.status_code == 400
+    assert "Invalid XML in local file" in exc_info.value.detail
+
+async def test_read_data_from_local_file_xml_empty(temp_empty_xml_file):
+    records = await read_data_from_local_file(temp_empty_xml_file)
+    assert len(records) == 0
+
+async def test_read_data_from_local_file_xml_no_records(temp_no_records_xml_file):
+    records = await read_data_from_local_file(temp_no_records_xml_file)
+    assert len(records) == 0
+
+async def test_read_data_from_local_file_xml_custom_root_finds_records(tmp_path):
+    file_path = tmp_path / "custom_root.xml"
+    # Root is <myData>, but contains <record> tags
+    content = "<myData><record><fieldX>X1</fieldX></record></myData>"
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(content)
+    records = await read_data_from_local_file(str(file_path))
+    assert len(records) == 1
+    assert records[0] == {"fieldX": "X1"}
+
 
 async def test_read_data_from_local_file_not_found():
     with pytest.raises(HTTPException) as exc_info:
@@ -152,6 +258,7 @@ async def test_read_data_from_local_file_unsupported(tmp_path):
         await read_data_from_local_file(str(file_path))
     assert exc_info.value.status_code == 400
     assert "Unsupported local file type" in exc_info.value.detail
+    assert "CSV, JSON, or XML" in exc_info.value.detail
 
 
 # --- Tests for convert_records_to_csv_string ---

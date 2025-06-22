@@ -221,12 +221,12 @@ async def handle_describe_sobject_endpoint(
     "/bulk/dml-file-upload",
     response_model=BulkOperationResponse,
     summary="Submit Bulk DML Job from Uploaded File",
-    description="Submits a bulk DML operation (insert, update, upsert, delete, hardDelete) using data from an uploaded file (CSV or JSON)."
+    description="Submits a bulk DML operation (insert, update, upsert, delete, hardDelete) using data from an uploaded file (CSV, JSON, or XML)."
 )
 async def handle_bulk_dml_from_file_upload(
     object_name: str = Query(..., description="Salesforce SObject API name."),
     operation_type: str = Query(..., description="DML Operation: insert, update, upsert, delete, hardDelete."),
-    file: UploadFile = File(..., description="File (CSV or JSON) containing records for the bulk operation."),
+    file: UploadFile = File(..., description="File (CSV, JSON, or XML) containing records for the bulk operation."),
     external_id_field: Optional[str] = Query(None, description="External ID field API name, required for upsert operation."),
     auth: SalesforceAuth = Depends(get_sfdc_auth)
 ):

@@ -64,21 +64,33 @@ async def read_file_data_for_bulk(file: UploadFile) -> List[Dict[str, Any]]:
                 raise FileParsingError("Invalid JSON structure: Expected a list of records or a dictionary with a 'records' key containing a list.")
             logger.info(f"Successfully parsed {len(records)} records from JSON file: {filename}")
 
-        # elif filename.endswith('.xml'): # XML parsing can be added if needed
-        #     # XML structure needs to be well-defined for reliable parsing into list of dicts
-        #     # Example: <records><record><field1>val1</field1></record></records>
-        #     # tree = ET.fromstring(content.decode('utf-8')) # Assuming utf-8 for XML
-        #     # for record_node in tree.findall('.//record'): # Adjust XPath as needed
-        #     #     record_dict = {child.tag: child.text for child in record_node}
-        #     #     records.append(record_dict)
-        #     logger.warning("XML file processing is not fully implemented yet for bulk operations.")
-        #     pass
+        elif filename.endswith('.xml'):
+            try:
+                decoded_content = content.decode('utf-8')
+            except UnicodeDecodeError as ude:
+                logger.error(f"Failed to decode XML file {filename} with utf-8: {ude}")
+                raise FileParsingError(f"Unsupported file encoding for XML: {filename}. Please use UTF-8.")
+            try:
+                tree = ET.fromstring(decoded_content)
+                # Expecting <records><record>...</record>...</records>
+                # Or simply a root element containing <record> elements directly
+                if tree.tag != 'records' and not tree.findall('./record'):
+                     logger.warning(f"XML file {filename} does not have a root <records> tag nor direct <record> children. Trying to find <record> tags anywhere.") # Allow flexibility
+
+                for record_node in tree.findall('.//record'): # Find all 'record' elements anywhere under the root
+                    record_dict = {child.tag: child.text for child in record_node}
+                    if record_dict: # Ensure the record_dict is not empty
+                        records.append(record_dict)
+                logger.info(f"Successfully parsed {len(records)} records from XML file: {filename}")
+            except ET.ParseError as etpe:
+                logger.error(f"XML parsing error for file {filename}: {str(etpe)}")
+                raise FileParsingError(f"Invalid XML format in {filename}: {str(etpe)}")
 
         else:
             logger.error(f"Unsupported file type for bulk processing: {filename}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Unsupported file type: {filename}. Please use CSV or JSON."
+                detail=f"Unsupported file type: {filename}. Please use CSV, JSON, or XML."
             )
 
         if not records:
@@ -93,6 +105,9 @@ async def read_file_data_for_bulk(file: UploadFile) -> List[Dict[str, Any]]:
     except json.JSONDecodeError as jde:
         logger.error(f"JSON decoding error for file {filename}: {jde.msg} at line {jde.lineno} col {jde.colno}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid JSON format: {jde.msg}")
+    except ET.ParseError as etpe: # Already caught and wrapped in FileParsingError, but good to have specific if direct use
+        logger.error(f"XML parsing error for file {filename} (direct catch): {str(etpe)}")
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid XML format: {str(etpe)}")
     except csv.Error as csve:
         logger.error(f"CSV parsing error for file {filename}: {csve}")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Invalid CSV format: {str(csve)}")
@@ -194,27 +209,39 @@ async def read_data_from_local_file(file_path: str) -> List[Dict[str, Any]]:
                 raise FileParsingError("Invalid JSON structure in local file.")
 
         elif file_path.endswith('.xml'):
-            # Basic XML parsing - assumes a structure like <records><record>...</record></records>
-            # This needs to be adapted to the actual XML structure if used.
             try:
                 decoded_content = content_bytes.decode('utf-8')
             except UnicodeDecodeError as ude:
                 logger.error(f"Failed to decode XML file {file_path}: {ude}")
                 raise FileParsingError(f"Unsupported file encoding for XML: {file_path}. Please use UTF-8.")
 
-            root = ET.fromstring(decoded_content)
-            for record_node in root.findall('.//record'): # Adjust XPath as per actual XML structure
-                record_dict = {}
-                for field_node in record_node:
-                    record_dict[field_node.tag] = field_node.text
-                if record_dict: # Add only if something was parsed
-                    records.append(record_dict)
-            if not records and root.tag != 'records': # If no records found and root is not 'records'
-                logger.warning(f"XML file {file_path} might not be in the expected <records><record> structure or is empty.")
+            try:
+                root = ET.fromstring(decoded_content)
+                # Similar logic to read_file_data_for_bulk for flexibility
+                if root.tag != 'records' and not root.findall('./record'):
+                    logger.warning(f"XML file {file_path} does not have a root <records> tag nor direct <record> children. Trying to find <record> tags anywhere.")
 
+                for record_node in root.findall('.//record'): # Find all 'record' elements
+                    record_dict = {child.tag: child.text for child in record_node}
+                    if record_dict:
+                        records.append(record_dict)
+                # The original warning about structure or empty is still relevant if records list is empty
+                if not records:
+                     logger.warning(f"No records parsed from XML file {file_path}. It might be empty or not contain <record> elements in the expected structure.")
+
+            except ET.ParseError as etpe:
+                logger.error(f"XML parsing error for local file {file_path}: {str(etpe)}")
+                # This will be caught by the generic ET.ParseError handler below,
+                # but raising FileParsingError here would also work and be caught by its handler.
+                # For consistency with how JSON/CSV decoding errors are handled (raising FileParsingError first),
+                # it might be slightly better to do:
+                # raise FileParsingError(f"Invalid XML format in local file {file_path}: {str(etpe)}")
+                # However, the current structure will still result in the correct HTTPException.
+                # Let's keep the direct ET.ParseError catch below, which is more specific.
+                raise # Re-raise to be caught by the specific ET.ParseError handler
 
         else:
-            raise FileParsingError(f"Unsupported local file type: {file_path}. Only CSV, JSON, XML supported.")
+            raise FileParsingError(f"Unsupported local file type: {file_path}. Only CSV, JSON, or XML supported.")
 
         logger.info(f"Successfully parsed {len(records)} records from local file: {file_path}")
         return records
