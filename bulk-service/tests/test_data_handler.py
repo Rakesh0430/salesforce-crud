@@ -5,18 +5,14 @@ import os
 from io import BytesIO
 from fastapi import UploadFile, HTTPException
 
-# To allow tests to run from the root directory and import src modules
-import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..')))
-
-from src.utils.data_handler import (
+from utils.data_handler import (
     read_file_data_for_bulk,
     read_data_from_local_file,
     convert_records_to_csv_string,
     parse_csv_string_to_records,
     FileParsingError
 )
-from src.core.config import settings # For logger name, though not directly used for logging here
+from core.config import settings
 
 # Mark all tests in this module as asyncio if they involve async functions
 # For data_handler, most functions are synchronous, but read_file_data_for_bulk is async
@@ -321,4 +317,3 @@ def test_parse_csv_string_to_records_empty_values():
     assert len(records) == 2
     assert records[0] == {"Id": "1", "Name": ""} # CSV empty values are read as empty strings
     assert records[1] == {"Id": "", "Name": "NoName"}
-```

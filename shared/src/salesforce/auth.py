@@ -7,7 +7,7 @@ from functools import lru_cache
 from typing import Optional, Tuple, Any
 
 from fastapi import HTTPException, status, Depends
-from src.core.config import settings
+from core.config import settings
 
 logger = logging.getLogger(settings.APP_NAME)
 

@@ -1,62 +1,31 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: sfdc-api-service
-  # namespace: your-namespace # Optional
+  name: record-service
   labels:
-    app: sfdc-api
+    app: record-service
 spec:
-  type: ClusterIP # Default type. Exposes the service on an internal IP in the cluster.
-                 # Use NodePort or LoadBalancer for external access.
-                 # For LoadBalancer, your K8s cloud provider must support it.
+  type: ClusterIP
   selector:
-    app: sfdc-api # Selects pods with the label "app: sfdc-api" (from Deployment)
+    app: record-service
   ports:
     - protocol: TCP
-      port: 80 # Port the service will be available on within the cluster
-      targetPort: 8000 # Port the application containers are listening on (containerPort in Deployment)
-      # name: http # Optional name for the port
-
-# To access externally (examples):
-# 1. Using NodePort:
-#   type: NodePort
-#   ports:
-#     - protocol: TCP
-#       port: 80
-#       targetPort: 8000
-#       nodePort: 30080 # Example static node port (optional, K8s assigns if omitted)
-#   Then access via <NodeIP>:30080
-
-# 2. Using LoadBalancer:
-#   type: LoadBalancer
-#   ports:
-#     - protocol: TCP
-#       port: 80 # Port the LoadBalancer will listen on
-#       targetPort: 8000
-#   K8s will provision an external load balancer (if supported by cloud provider).
-
-# 3. Using Ingress:
-#   This is the preferred method for HTTP/S external access.
-#   You would typically keep Service type as ClusterIP and define an Ingress resource.
-#   Example Ingress (simplified, create ingress.yaml separately):
-#   ---
-#   apiVersion: networking.k8s.io/v1
-#   kind: Ingress
-#   metadata:
-#     name: sfdc-api-ingress
-#     annotations:
-#       # Ingress controller specific annotations, e.g., for Nginx Ingress:
-#       # nginx.ingress.kubernetes.io/rewrite-target: /
-#   spec:
-#     rules:
-#       - host: sfdc-api.yourdomain.com
-#         http:
-#           paths:
-#             - path: /
-#               pathType: Prefix
-#               backend:
-#                 service:
-#                   name: sfdc-api-service
-#                   port:
-#                     number: 80 # Service port
-```
+      port: 8000
+      targetPort: 8000
+      name: http-record
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bulk-service
+  labels:
+    app: bulk-service
+spec:
+  type: ClusterIP
+  selector:
+    app: bulk-service
+  ports:
+    - protocol: TCP
+      port: 8001
+      targetPort: 8001
+      name: http-bulk
