@@ -1,58 +1,59 @@
 version: '3.8'
 
 services:
-  api:
+  record-service:
     build:
       context: .
-      dockerfile: Dockerfile
-    container_name: sfdc_integration_api
-    # If you have a .env file at the root of your project,
-    # Docker Compose will automatically load it.
-    # Otherwise, you can specify an env_file:
+      dockerfile: record-service/Dockerfile
+    container_name: record_service_api
     env_file:
-      - .env # Assumes .env file is in the project root and contains necessary runtime env vars
-    # For local development, you might want to mount your source code
-    # to see changes without rebuilding the image.
-    # For production-like testing, build the image and run it without volumes.
+      - .env
     volumes:
-      - ./src:/app/src # Mount local src directory into the container
-      # If you want to persist data locally for testing file operations:
-      - ./local_data/input:/app/data/input
+      - ./record-service/src:/app/record-service/src
+      - ./shared/src:/app/shared/src
       - ./local_data/output:/app/data/output
-      - ./local_data/failed:/app/data/failed
-      # If you have a local log file you want to persist/view:
-      # - ./logs:/app/logs # Assuming LOG_FILENAME is e.g. logs/sfdc_api.log
     ports:
-      - "8000:8000" # Map port 8000 on the host to port 8000 in the container
-    # command: uvicorn src.app.main:app --host 0.0.0.0 --port 8000 --reload # Enable reload for dev
-    # The CMD in Dockerfile will be used if no command is specified here.
-    # For development with reload:
-    command: ["uvicorn", "src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app/src"]
+      - "8000:8000"
+    command: ["uvicorn", "record-service.src.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload", "--reload-dir", "/app"]
     environment:
-      # You can override or set additional environment variables here
-      - DEBUG_MODE=${DEBUG_MODE:-True} # Default to True if not set in .env
+      - DEBUG_MODE=${DEBUG_MODE:-True}
       - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
-      # Ensure all required env vars from .env.example are available
       - SALESFORCE_CLIENT_ID=${SALESFORCE_CLIENT_ID}
       - SALESFORCE_CLIENT_SECRET=${SALESFORCE_CLIENT_SECRET}
       - SALESFORCE_USERNAME=${SALESFORCE_USERNAME}
       - SALESFORCE_PASSWORD=${SALESFORCE_PASSWORD}
-      - SALESFORCE_TOKEN_URL=${SALESFORCE_TOKEN_URL:-https://login.salesforce.com/services/oauth2/token}
-      - DATA_PATH_INPUT=/app/data/input # Ensure these match container paths
+      - SALESFORCE_TOKEN_URL=${SALESFORCE_TOKEN_URL}
+      - DATA_PATH_OUTPUT=/app/data/output
+
+  bulk-service:
+    build:
+      context: .
+      dockerfile: bulk-service/Dockerfile
+    container_name: bulk_service_api
+    env_file:
+      - .env
+    volumes:
+      - ./bulk-service/src:/app/bulk-service/src
+      - ./shared/src:/app/shared/src
+      - ./local_data/input:/app/data/input
+      - ./local_data/output:/app/data/output
+      - ./local_data/failed:/app/data/failed
+    ports:
+      - "8001:8001"
+    command: ["uvicorn", "bulk-service.src.app.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload", "--reload-dir", "/app"]
+    environment:
+      - DEBUG_MODE=${DEBUG_MODE:-True}
+      - LOG_LEVEL=${LOG_LEVEL:-DEBUG}
+      - SALESFORCE_CLIENT_ID=${SALESFORCE_CLIENT_ID}
+      - SALESFORCE_CLIENT_SECRET=${SALESFORCE_CLIENT_SECRET}
+      - SALESFORCE_USERNAME=${SALESFORCE_USERNAME}
+      - SALESFORCE_PASSWORD=${SALESFORCE_PASSWORD}
+      - SALESFORCE_TOKEN_URL=${SALESFORCE_TOKEN_URL}
+      - DATA_PATH_INPUT=/app/data/input
       - DATA_PATH_OUTPUT=/app/data/output
       - DATA_PATH_FAILED=/app/data/failed
-      # Add any other necessary environment variables for your application
-    depends_on:
-      [] # Add dependencies if you have other services like a database
 
-# Optional: Define named volumes if you prefer them over host mounts for data persistence
-# volumes:
-#   sfdc_api_data_input:
-#   sfdc_api_data_output:
-#   sfdc_api_data_failed:
-
-# Run `docker-compose up --build` to build and start the service.
-# Run `docker-compose down` to stop and remove containers.
-# Ensure you have a .env file with your Salesforce credentials.
-# Create local_data directories if using host mounts for data:
-# mkdir -p local_data/input local_data/output local_data/failed logs
+# To run:
+# 1. Make sure you have a .env file with Salesforce credentials.
+# 2. Create local data directories: mkdir -p local_data/input local_data/output local_data/failed
+# 3. Run: docker-compose up --build

@@ -1,23 +1,24 @@
-# src/app/main.py
+# record-service/src/app/main.py
 from fastapi import FastAPI, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 import time
 import logging
+from datetime import datetime
 
-from src.app.routers import sfdc as sfdc_router
-from src.core.config import settings
-from src.utils.logger import setup_logging
+from app.routers import records as records_router
+from core.config import settings
+from utils.logger import setup_logging
 
 # Setup logging
 setup_logging()
 logger = logging.getLogger(settings.APP_NAME)
 
 app = FastAPI(
-    title=settings.APP_NAME,
+    title="Record Service API",
     version=settings.APP_VERSION,
-    description="Production-grade API for dynamic Salesforce object integration and CRUD operations.",
+    description="Microservice for single-record CRUD operations with Salesforce.",
     openapi_url=f"{settings.API_V1_STR}/openapi.json"
 )
 
@@ -61,30 +62,18 @@ async def general_exception_handler(request: Request, exc: Exception):
     )
 
 # Include routers
-app.include_router(sfdc_router.router, prefix=settings.API_V1_STR, tags=["Salesforce Operations"])
+app.include_router(records_router.router, prefix=settings.API_V1_STR, tags=["Record Operations"])
 
 @app.get("/health", tags=["Health"])
 async def health_check():
-    # Basic health check, can be expanded with psutil if needed for quick status
-    # For more detailed metrics, see /metrics endpoint
-    return {"status": "healthy", "application": settings.APP_NAME, "version": settings.APP_VERSION, "timestamp": datetime.utcnow().isoformat()}
+    return {"status": "healthy", "application": "RecordServiceAPI", "version": settings.APP_VERSION, "timestamp": datetime.utcnow().isoformat()}
 
-# Detailed Metrics Endpoint (inspired by salesforce_custom_object_metric.py)
+# Detailed Metrics Endpoint
 import psutil
 import platform
-from datetime import datetime # ensure datetime is imported if not already
 
 @app.get("/metrics", tags=["Metrics"], summary="Get detailed system and application metrics")
 async def get_detailed_metrics():
-    """
-    Returns detailed system metrics including CPU, memory, disk, network,
-    and basic application information.
-    """
-    # Application uptime (example, would need to store start time)
-    # For now, placeholder or could be calculated if app start time is stored globally
-    # global app_start_time # Needs to be set at app startup
-    # uptime_seconds = time.time() - app_start_time if 'app_start_time' in globals() else None
-
     try:
         disk_usage = psutil.disk_usage('/')
         disk_metrics = {
@@ -93,7 +82,7 @@ async def get_detailed_metrics():
             "free": disk_usage.free,
             "percent": disk_usage.percent,
         }
-    except Exception as e: # Handle potential errors like permission denied or path not found
+    except Exception as e:
         logger.warning(f"Could not retrieve disk usage metrics: {e}")
         disk_metrics = None
 
@@ -104,18 +93,17 @@ async def get_detailed_metrics():
             "min": cpu_freq.min,
             "max": cpu_freq.max,
         }
-    except Exception: # Some systems might not support this or raise errors
+    except Exception:
         cpu_freq_metrics = None
 
-
     metrics = {
-        "application_name": settings.APP_NAME,
+        "application_name": "RecordServiceAPI",
         "application_version": settings.APP_VERSION,
         "timestamp": datetime.utcnow().isoformat(),
         "cpu_logical_count": psutil.cpu_count(logical=True),
         "cpu_physical_count": psutil.cpu_count(logical=False),
-        "cpu_usage_percent": psutil.cpu_percent(interval=0.1), # Short interval for responsiveness
-        "cpu_load_average": psutil.getloadavg() if hasattr(psutil, "getloadavg") else None, # (1, 5, 15 min avg)
+        "cpu_usage_percent": psutil.cpu_percent(interval=0.1),
+        "cpu_load_average": psutil.getloadavg() if hasattr(psutil, "getloadavg") else None,
         "cpu_frequency": cpu_freq_metrics,
         "memory_virtual": {
             "total": psutil.virtual_memory().total,
@@ -130,7 +118,7 @@ async def get_detailed_metrics():
             "free": psutil.swap_memory().free,
             "percent": psutil.swap_memory().percent,
         } if hasattr(psutil, "swap_memory") else None,
-        "disk_usage_root": disk_metrics,
+        "disk_.env.example": disk_metrics,
         "network_io_counters": {
             "bytes_sent": psutil.net_io_counters().bytes_sent,
             "bytes_recv": psutil.net_io_counters().bytes_recv,
@@ -144,11 +132,12 @@ async def get_detailed_metrics():
         "system_boot_time": datetime.utcfromtimestamp(psutil.boot_time()).isoformat() if hasattr(psutil, "boot_time") else None,
         "operating_system": platform.platform(),
         "python_version": platform.python_version(),
-        # "application_uptime_seconds": uptime_seconds,
     }
     return metrics
 
-
 if __name__ == "__main__":
     import uvicorn
+    # This is for local development. For production, use a Gunicorn server.
+    # The PYTHONPATH needs to be configured to find the 'shared' directory.
+    # Example: PYTHONPATH=./shared/src uvicorn record-service.src.app.main:app --reload
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=settings.DEBUG_MODE)

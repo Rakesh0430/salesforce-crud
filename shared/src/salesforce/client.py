@@ -4,9 +4,9 @@ import json
 import logging
 from typing import Any, Dict, List, Optional, Union, Tuple
 
-from fastapi import HTTPException, status
-from src.core.config import settings
-from src.salesforce.auth import SalesforceAuth # Assuming SalesforceAuth class is in auth.py
+from fastapi import HTTPException, status, Depends
+from core.config import settings
+from salesforce.auth import SalesforceAuth
 
 logger = logging.getLogger(settings.APP_NAME)
 

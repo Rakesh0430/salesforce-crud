@@ -2,7 +2,7 @@
 import logging
 import sys
 from logging.handlers import RotatingFileHandler
-from src.core.config import settings # Assuming settings are loaded here
+from core.config import settings
 
 def setup_logging():
     """
@@ -62,11 +62,11 @@ def setup_logging():
 # However, it's often better to call it explicitly from main.py or app.__init__.
 # For now, it's a function to be called.
 # Example: In main.py:
-# from src.utils.logger import setup_logging
+# from utils.logger import setup_logging
 # setup_logging()
 
 # To get a logger instance elsewhere:
 # import logging
-# from src.core.config import settings
+# from core.config import settings
 # logger = logging.getLogger(settings.APP_NAME)
 # logger.info("This is a test log message.")
